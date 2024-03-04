@@ -1,0 +1,145 @@
+Program.Sub.ScreenSU.Start
+gui.Client..create
+gui.Client..caption("Paychex")
+gui.Client..size(1740,2790)
+gui.Client..position(0,0)
+gui.Client..event(unload,unload)
+gui.Client..alwaysontop(True)
+gui.Client..fontname("arial")
+gui.Client..fontsize(8)
+gui.Client..forecolor(0)
+gui.Client..fontstyle(False,False,False,False,False)
+gui.Client..BackColor(-2147483633)
+gui.Client..controlbox(True)
+gui.Client..maxbutton(True)
+gui.Client..minbutton(True)
+gui.Client..mousepointer(0)
+gui.Client..moveable(True)
+gui.Client..sizeable(True)
+gui.Client..ShowInTaskBar(True)
+gui.Client..titlebar(True)
+gui.Client.txt1.create(textbox)
+gui.Client.txt1.text("")
+gui.Client.txt1.visible(True)
+gui.Client.txt1.size(1215,315)
+gui.Client.txt1.zorder(0)
+gui.Client.txt1.position(200,400)
+gui.Client.txt1.enabled(True)
+gui.Client.txt1.fontname("arial")
+gui.Client.txt1.fontsize(8)
+gui.Client.txt1.maxLength(3)
+gui.Client.txt1.BackColor(-2147483643)
+gui.Client.lbl1.create(label)
+gui.Client.lbl1.caption("Client Number")
+gui.Client.lbl1.backstyle(0)
+gui.Client.lbl1.visible(True)
+gui.Client.lbl1.size(1095,255)
+gui.Client.lbl1.zorder(1)
+gui.Client.lbl1.position(200,200)
+gui.Client.lbl1.enabled(True)
+gui.Client.lbl1.fontname("arial")
+gui.Client.lbl1.fontsize(8)
+gui.Client.lbl1.BackColor(-2147483633)
+gui.Client.cmdExport.create(button)
+gui.Client.cmdExport.caption("OK")
+gui.Client.cmdExport.visible(True)
+gui.Client.cmdExport.size(975,375)
+gui.Client.cmdExport.zorder(0)
+gui.Client.cmdExport.position(300,1700)
+gui.Client.cmdExport.enabled(True)
+gui.Client.cmdExport.fontname("arial")
+gui.Client.cmdExport.fontsize(8)
+gui.Client.cmdExport.event(click,Process)
+
+
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+
+Variable.Global.DSN.Declare(String)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'Gui.Client..Show
+
+F.Intrinsic.Control.CallSub(Process)
+
+Program.Sub.Main.End
+
+Program.Sub.Process.Start
+
+V.Local.sSql.Declare(String)
+V.Local.sFileDate.Declare(String)
+V.Local.sDate.Declare(String)
+V.Local.sTime.Declare(String)
+
+V.Local.iFile.declare(Long)
+V.Local.sFilename.declare(String)
+
+V.Local.sWriteLine.Declare(String)
+V.Local.sType.Declare(String)
+V.Local.sEC.Declare(String)
+V.Local.fRegular.Declare(Float)
+V.Local.fOverTime.Declare(Float)
+V.Local.fTotal.Declare(Float)
+
+
+F.Intrinsic.String.Format(V.Ambient.Date,"yyyy-mm-dd",V.Local.sFileDate)
+
+F.Odbc.Connection!Conx.Openconnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+
+F.Intrinsic.String.Left(V.Passed.888888,8,V.Local.sDate)
+F.Intrinsic.String.Mid(V.Passed.888888,9,6,V.Local.sTime)
+
+F.Intrinsic.String.Concat(V.Caller.FilesDir,"PR-",V.Local.sFileDate,".csv",V.Local.sFilename)
+
+F.Intrinsic.File.Openforwrite(V.Local.sFilename,V.Local.iFile)
+
+F.intrinsic.string.concat("Select EMPLOYEE From PYRL_LABOR_XFER Where RUN_CYMD = '",V.Local.sDate,"' And RUN_TIME = '",V.Local.sTime,"' Group By EMPLOYEE",V.Local.sSql)
+F.Odbc.Connection!Conx.Openrecordsetro("rstEMP",V.Local.sSql)
+F.Intrinsic.Control.dountil(V.Odbc.Conx!rstEMP.Eof,=,True)
+	V.Local.fRegular.Set(0)
+	V.Local.fOverTime.Set(0)
+	
+	F.intrinsic.string.concat("Select DESCR, HOURS, TYPE From PYRL_LABOR_XFER Where RUN_CYMD = '",V.Local.sDate,"' And RUN_TIME = '",V.Local.sTime,"' And EMPLOYEE = '",V.Odbc.Conx!rstEMP.Fieldval!EMPLOYEE,"'",Variable.Local.sSql)
+	F.Odbc.Connection!Conx.Openrecordsetro("rst",V.Local.sSql)
+	F.Intrinsic.Control.dountil(V.Odbc.Conx!rst.Eof,=,True)
+		
+		F.Intrinsic.String.Left(V.ODBC.Conx!rst.FieldVal!DESCR,4,V.Local.sEC)
+		
+		V.Local.sType.Set(V.ODBC.Conx!rst.FieldVal!TYPE)
+		F.Intrinsic.Control.If(V.Local.sType,=,"RT")
+			F.Intrinsic.Math.Add(V.Local.fRegular,V.ODBC.Conx!rst.FieldValFloat!HOURS,V.Local.fRegular)
+		F.Intrinsic.Control.ElseIf(V.Local.sType,=,"OT")
+			F.Intrinsic.Math.Add(V.Local.fOverTime,V.ODBC.Conx!rst.FieldValFloat!HOURS,V.Local.fOverTime)
+		F.intrinsic.Control.EndIf
+			
+		F.Odbc.Conx!rst.movenext
+	F.intrinsic.control.loop
+	F.Odbc.Conx!rst.Close
+	
+	F.Intrinsic.Math.Add(V.Local.fRegular,V.Local.fOverTime,V.Local.fTotal)
+	
+	F.Intrinsic.String.Concat(V.Odbc.Conx!rstEMP.Fieldval!EMPLOYEE,",",V.Local.fRegular,",",V.Local.fOverTime,",",V.Local.sEC,",",V.Local.fTotal,V.Local.sWriteLine)
+	
+	F.Intrinsic.File.Writeline(V.Local.iFile,V.Local.sWriteLine)
+	
+	F.Odbc.Conx!rstEMP.movenext
+F.intrinsic.control.loop
+F.Odbc.Conx!rstEMP.Close
+
+F.Intrinsic.File.Closefile(V.Local.iFile)
+
+F.Intrinsic.Control.CallSub(Unload)
+
+
+
+Program.Sub.Process.End
+
+Program.Sub.unload.Start
+F.Odbc.Connection!Conx.Close
+F.Intrinsic.Control.End
+
+Program.Sub.unload.End
+
+
